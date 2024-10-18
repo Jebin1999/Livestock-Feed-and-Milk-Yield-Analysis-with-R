@@ -1,0 +1,159 @@
+---
+title: "Livestock Feed and Milk Yield Analysis with R"
+output: html_notebook
+---
+
+# Project Overview:
+Objective: The goal is to use mathematical and statistical techniques to analyze milk yield in dairy cows, optimize feed intake, and predict trends in cow health using synthetic or open-source data. The project will demonstrate skills in linear algebra, statistics, and mathematical modeling using R.
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(MASS)  # For synthetic data generation
+library(stats)  # For PCA and ANOVA
+library(caret)  # For Linear Regression
+library(corrplot)  # For correlation matrix visualization
+
+# 1.1 Load open-source data (if available) from Kaggle or FAO
+# Here we simulate the data as an example using synthetic data
+
+# Synthetic data generation for cow feed intake and milk yield
+set.seed(123)
+
+# Create synthetic data for 100 cows over 365 days
+n_cows <- 100
+n_days <- 365
+cow_ids <- rep(1:n_cows, each = n_days)
+
+# Generate synthetic feed intake data (in kg) and milk yield (liters)
+feed_protein <- rnorm(n_cows * n_days, mean = 16, sd = 2)
+feed_fat <- rnorm(n_cows * n_days, mean = 4, sd = 1)
+feed_energy <- rnorm(n_cows * n_days, mean = 2800, sd = 500)  # in kcal
+
+milk_yield <- 25 + 0.5 * feed_protein + 0.3 * feed_fat + rnorm(n_cows * n_days, mean = 0, sd = 5)  # Milk yield in liters
+
+# Combine into a data frame
+synthetic_data <- data.frame(
+  cow_id = cow_ids,
+  feed_protein = feed_protein,
+  feed_fat = feed_fat,
+  feed_energy = feed_energy,
+  milk_yield = milk_yield
+)
+
+# View the first few rows
+head(synthetic_data)
+
+# Summary of the synthetic data
+summary(synthetic_data)
+
+```
+
+
+## Step 2: Exploratory Data Analysis (EDA)
+
+```{r}
+# 2.1 Summary statistics
+summary(synthetic_data)
+
+# 2.2 Correlation matrix
+cor_matrix <- cor(synthetic_data[, c("feed_protein", "feed_fat", "feed_energy", "milk_yield")])
+print(cor_matrix)
+
+# Visualize the correlation matrix
+corrplot(cor_matrix, method = "color", type = "upper")
+
+# 2.3 Visualizations
+# Plot milk yield vs feed protein intake
+ggplot(synthetic_data, aes(x = feed_protein, y = milk_yield)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "blue") +
+  labs(title = "Milk Yield vs Protein Intake", x = "Protein Intake (kg)", y = "Milk Yield (liters)")
+
+# Plot milk yield vs feed fat intake
+ggplot(synthetic_data, aes(x = feed_fat, y = milk_yield)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Milk Yield vs Fat Intake", x = "Fat Intake (kg)", y = "Milk Yield (liters)")
+
+
+```
+
+## Step 3: Linear Regression for Milk Yield Prediction
+We will use linear regression to predict milk yield based on the feed intake of protein, fat, and energy.
+
+```{r}
+# 3.1 Linear regression: Milk yield as a function of feed intake
+lm_model <- lm(milk_yield ~ feed_protein + feed_fat + feed_energy, data = synthetic_data)
+summary(lm_model)
+
+# Visualize regression diagnostics
+par(mfrow = c(2, 2))
+plot(lm_model)
+
+# 3.2 Predictions
+predicted_milk_yield <- predict(lm_model, synthetic_data)
+
+# Add the predicted values to the dataset
+synthetic_data$predicted_milk_yield <- predicted_milk_yield
+
+# 3.3 Visualize the actual vs predicted milk yield
+ggplot(synthetic_data, aes(x = milk_yield, y = predicted_milk_yield)) +
+  geom_point(alpha = 0.5, color = "green") +
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  labs(title = "Actual vs Predicted Milk Yield", x = "Actual Milk Yield (liters)", y = "Predicted Milk Yield (liters)")
+
+```
+
+## Step 4: Principal Component Analysis (PCA)
+Perform PCA on the feed intake data to identify the most important features contributing to milk yield.
+
+```{r}
+# 4.1 Perform PCA on feed intake data
+pca_data <- synthetic_data[, c("feed_protein", "feed_fat", "feed_energy")]
+pca_result <- prcomp(pca_data, scale. = TRUE)
+
+# 4.2 Summary of PCA results
+summary(pca_result)
+
+# 4.3 Visualize PCA (Scree plot)
+screeplot(pca_result, type = "lines", main = "Scree Plot")
+
+# 4.4 Biplot of PCA
+biplot(pca_result)
+
+```
+
+## Step 5: Linear Algebra in Nutrient Calculation
+We will use matrix operations to calculate the total nutrient intake for a group of cows.
+
+```{r}
+# 5.1 Matrix operations for total nutrient intake
+nutrient_matrix <- as.matrix(synthetic_data[, c("feed_protein", "feed_fat", "feed_energy")])
+nutrient_totals <- colSums(nutrient_matrix)
+
+# 5.2 Display the total nutrient intake
+print(nutrient_totals)
+
+```
+
+## Step 6: Statistical Testing (ANOVA)
+We will test whether there are significant differences in milk yield between different levels of protein intake using ANOVA.
+
+```{r}
+# 6.1 Categorize protein intake into low, medium, high categories
+synthetic_data$protein_level <- cut(synthetic_data$feed_protein, breaks = 3, labels = c("Low", "Medium", "High"))
+
+# 6.2 Perform ANOVA on milk yield by protein level
+anova_result <- aov(milk_yield ~ protein_level, data = synthetic_data)
+summary(anova_result)
+
+# 6.3 Visualize milk yield by protein level
+ggplot(synthetic_data, aes(x = protein_level, y = milk_yield, fill = protein_level)) +
+  geom_boxplot() +
+  labs(title = "Milk Yield by Protein Level", x = "Protein Level", y = "Milk Yield (liters)")
+
+```
+
